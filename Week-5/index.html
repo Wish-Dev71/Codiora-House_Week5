@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CODIORA | My Orders & Projects</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:Arial,sans-serif}
+body{background:#f4f6fb;color:#222}
+header{background:#0f172a;color:#fff;padding:15px 5%;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap}
+header h1{font-size:22px} header h1 span{color:#22d3ee}
+nav button{background:#fff;border:none;padding:8px 14px;margin:3px;border-radius:20px;cursor:pointer;font-weight:bold}
+nav button.active{background:#22d3ee}
+.container{max-width:1100px;margin:auto;padding:20px}
+.topbar{display:flex;gap:10px;flex-wrap:wrap;justify-content:space-between;align-items:center;background:#fff;padding:15px;border-radius:12px;margin-bottom:20px}
+.topbar select,.topbar input{padding:9px;border:1px solid #ccc;border-radius:8px}
+.view-toggle{display:flex;gap:8px;background:#f1f5f9;padding:5px;border-radius:20px}
+.view-toggle button{border:none;padding:8px 14px;border-radius:20px;cursor:pointer;font-weight:bold;background:transparent}
+.view-toggle button.active{background:#0f172a;color:#fff}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:20px}
+.stat{background:#fff;padding:15px;border-radius:12px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,.06)}
+.stat b{font-size:22px;display:block}
+.orders{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px}
+.card{background:#fff;padding:18px;border-radius:12px;box-shadow:0 2px 10px rgba(0,0,0,.08)}
+.badge{padding:4px 10px;border-radius:20px;font-size:12px;font-weight:bold}
+.Pending{background:#fef3c7;color:#92400e}.InProgress{background:#dbeafe;color:#1e40af}
+.Submitted{background:#e0e7ff;color:#4338ca}.Completed{background:#dcfce7;color:#166534}.Cancelled{background:#fee2e2;color:#991b1b}
+.progress{height:10px;background:#e5e7eb;border-radius:20px;margin:10px 0;overflow:hidden}
+.progress div{height:100%;background:#22d3ee;transition:.3s}
+.card p{font-size:14px;color:#555;margin:4px 0}
+.card button{margin-top:10px;width:100%;padding:10px;border:none;border-radius:8px;cursor:pointer;font-weight:bold;background:#0f172a;color:#fff}
+.section{display:none;background:#fff;padding:20px;border-radius:12px;margin-top:20px}
+.section.active{display:block}
+.milestone{display:flex;gap:10px;align-items:center;border:1px solid #eee;padding:10px;border-radius:8px;margin:8px 0}
+.milestone.done{opacity:.6;text-decoration:line-through}
+form input,form textarea,form select{width:100%;padding:10px;margin:8px 0;border:1px solid #ccc;border-radius:8px}
+form button{background:#0f172a;color:#fff;padding:12px;border:none;border-radius:8px;width:100%;font-weight:bold;cursor:pointer}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;justify-content:center;align-items:center;padding:15px}
+.modal-content{background:#fff;max-width:650px;width:100%;padding:20px;border-radius:12px;max-height:92vh;overflow:auto}
+.close{float:right;cursor:pointer;font-size:22px}
+.flex{display:flex;gap:12px;flex-wrap:wrap}
+.person{flex:1;min-width:200px;background:#f8fafc;padding:12px;border-radius:10px}
+@media(max-width:600px){header{justify-content:center;text-align:center}}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>CODIORA <span>| Our Code Builds Your Vision</span></h1>
+  <nav>
+    <button class="active" onclick="showPage('orders',this)">My Orders</button>
+    <button onclick="showPage('all',this)">All Projects</button>
+  </nav>
+</header>
+
+<div class="container">
+  <!-- TOPBAR -->
+  <div class="topbar">
+    <div>
+      <b>View As:</b>
+      <span class="view-toggle">
+        <button id="btnClient" onclick="setView('Client')">👤 Client View</button>
+        <button id="btnFreelancer" class="active" onclick="setView('Freelancer')">💻 Freelancer View</button>
+      </span>
+    </div>
+    <div>
+      <input id="search" placeholder="Search project..." onkeyup="render()">
+      <select id="filterStatus" onchange="render()">
+        <option value="All">All Status</option><option>Pending</option><option>In Progress</option><option>Submitted</option><option>Completed</option><option>Cancelled</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><b id="total">0</b>Total Orders</div>
+    <div class="stat"><b id="active">0</b>Active</div>
+    <div class="stat"><b id="done">0</b>Completed</div>
+    <div class="stat"><b id="earn">$0</b>Total Budget</div>
+  </div>
+
+  <div id="orders-page"><div class="orders" id="orderList"></div><p id="empty" style="text-align:center;display:none">No projects found 😔</p></div>
+  <div id="all" class="section"><h2>All Projects</h2><p style="color:#666;margin:8px 0">Ye Week 4 wale jobs se accepted orders hain. Neeche same orders show ho rahe hain.</p><div id="allList"></div></div>
+</div>
+
+<!-- DETAILS MODAL -->
+<div class="modal" id="detailsModal">
+  <div class="modal-content">
+    <span class="close" onclick="closeModal()">&times;</span>
+    <div id="detailsContent"></div>
+  </div>
+</div>
+
+<script>
+let currentView='Freelancer';
+let projects=[
+{id:1,title:"Build a Portfolio Website",client:"Ayesha Khan",freelancer:"Ali Raza",budget:300,deadline:"Nov 22, 2026",status:"In Progress",desc:"Modern responsive portfolio website with 5 pages, contact form and animations.",milestones:[{t:"Homepage Design",done:true},{t:"About + Services Pages",done:true},{t:"Contact Form + Responsive",done:false},{t:"Final Delivery + Testing",done:false}],delivery:""},
+{id:2,title:"Logo for Coffee Brand",client:"Bilal Ahmed",freelancer:"Sana Malik",budget:120,deadline:"Nov 18, 2026",status:"Submitted",desc:"Clean minimal logo, 3 concepts, brand colors.",milestones:[{t:"3 Logo Concepts",done:true},{t:"Client Feedback",done:true},{t:"Final Files (PNG/SVG)",done:true}],delivery:"logo-final.zip - Submitted on Nov 17"},
+{id:3,title:"E-commerce App UI",client:"CODIORA",freelancer:"Hamza Ali",budget:800,deadline:"Dec 05, 2026",status:"Pending",desc:"UI for e-commerce app - Home, Cart, Checkout screens.",milestones:[{t:"Wireframes",done:false},{t:"UI Design in Figma",done:false},{t:"Prototype",done:false}],delivery:""},
+{id:4,title:"Landing Page for CODIORA",client:"CODIORA",freelancer:"Fatima Noor",budget:250,deadline:"Nov 15, 2026",status:"Completed",desc:"High-converting landing page for internship program.",milestones:[{t:"Hero Section",done:true},{t:"Courses + Form",done:true},{t:"Live Deployment",done:true}],delivery:"Live link: codiora-landing.netlify.app"},
+];
+
+function progress(p){ const done=p.milestones.filter(m=>m.done).length; return Math.round(done/p.milestones.length*100); }
+function setView(v){ currentView=v; document.getElementById('btnClient').classList.toggle('active',v==='Client'); document.getElementById('btnFreelancer').classList.toggle('active',v==='Freelancer'); render(); }
+function showPage(id,btn){ document.querySelectorAll('nav button').forEach(b=>b.classList.remove('active')); if(btn)btn.classList.add('active'); document.getElementById('orders-page').style.display=id==='orders'?'block':'none'; document.querySelectorAll('.section').forEach(s=>s.classList.remove('active')); if(id!=='orders') document.getElementById(id).classList.add('active'); if(id==='all') renderAll(); }
+
+function cardHTML(p){
+  const cls=p.status.replace(' ','');
+  const pct=progress(p);
+  const who=currentView==='Client'? `Freelancer: <b>${p.freelancer}</b>` : `Client: <b>${p.client}</b>`;
+  return `<div class="card">
+  <span class="badge ${cls}">${p.status}</span>
+  <h3 style="margin:10px 0 5px">${p.title}</h3>
+  <p>${who}</p>
+  <p><b>Budget:</b> $${p.budget} | <b>Deadline:</b> ${p.deadline}</p>
+  <div class="progress"><div style="width:${pct}%"></div></div>
+  <p>${pct}% Completed • ${p.milestones.filter(m=>m.done).length}/${p.milestones.length} Milestones</p>
+  <button onclick="openDetails(${p.id})">View Project Details →</button>
+  </div>`;
+}
+function render(){
+  const q=document.getElementById('search').value.toLowerCase();
+  const f=document.getElementById('filterStatus').value;
+  const list=projects.filter(p=>(p.title.toLowerCase().includes(q))&&(f==='All'||p.status===f));
+  document.getElementById('orderList').innerHTML=list.map(cardHTML).join('');
+  document.getElementById('empty').style.display=list.length?'none':'block';
+  document.getElementById('total').innerText=projects.length;
+  document.getElementById('active').innerText=projects.filter(p=>['Pending','In Progress','Submitted'].includes(p.status)).length;
+  document.getElementById('done').innerText=projects.filter(p=>p.status==='Completed').length;
+  document.getElementById('earn').innerText='$'+projects.reduce((s,p)=>s+p.budget,0);
+}
+function renderAll(){ document.getElementById('allList').innerHTML=projects.map(cardHTML).join(''); }
+
+function openDetails(id){
+  const p=projects.find(x=>x.id===id); const pct=progress(p); const cls=p.status.replace(' ','');
+  const isFreelancer=currentView==='Freelancer';
+  document.getElementById('detailsContent').innerHTML=`
+  <span class="badge ${cls}">${p.status}</span>
+  <h2 style="margin:10px 0">${p.title}</h2>
+  <div class="flex">
+    <div class="person"><b>👤 Client</b><br>${p.client}<br><small>Project Owner</small></div>
+    <div class="person"><b>💻 Freelancer</b><br>${p.freelancer}<br><small>Working on project</small></div>
+  </div>
+  <p style="margin:12px 0"><b>Budget:</b> $${p.budget} | <b>Deadline:</b> ${p.deadline}</p>
+  <p><b>Description:</b> ${p.desc}</p>
+  <div class="progress"><div style="width:${pct}%"></div></div>
+  <p><b>Project Progress: ${pct}%</b></p>
+  <h3 style="margin:15px 0 5px">✅ Milestones / Tasks</h3>
+  ${p.milestones.map((m,i)=>`<label class="milestone ${m.done?'done':''}"><input type="checkbox" ${m.done?'checked':''} onchange="toggleMilestone(${p.id},${i})"> ${m.t}</label>`).join('')}
+  <h3 style="margin:15px 0 5px">📦 Delivery / Submission</h3>
+  <p style="background:#f8fafc;padding:10px;border-radius:8px">${p.delivery||'No delivery yet.'}</p>
+  ${isFreelancer?`
+  <input id="del-${p.id}" placeholder="Paste delivery link / file name e.g. website.zip">
+  <button onclick="submitDelivery(${p.id})" style="background:#22d3ee;padding:10px;width:100%;border:none;border-radius:8px;font-weight:bold;cursor:pointer;margin:8px 0">Submit Delivery</button>
+  <select id="status-${p.id}" onchange="changeStatus(${p.id},this.value)" style="padding:10px;width:100%;border-radius:8px">
+    <option disabled selected>Change Status...</option><option>Pending</option><option>In Progress</option><option>Submitted</option><option>Completed</option><option>Cancelled</option>
+  </select>
+  `:`<p style="margin-top:10px;color:#666">As Client, you can review delivery and mark project as Completed / Cancelled.</p>
+  <button onclick="changeStatus(${p.id},'Completed');closeModal()" style="background:green;color:#fff;padding:10px;width:100%;border:none;border-radius:8px;margin:5px 0;cursor:pointer">✅ Accept & Mark Completed</button>
+  <button onclick="changeStatus(${p.id},'Cancelled');closeModal()" style="background:red;color:#fff;padding:10px;width:100%;border:none;border-radius:8px;cursor:pointer">❌ Cancel Project</button>`}
+  `;
+  document.getElementById('detailsModal').style.display='flex';
+}
+function toggleMilestone(pid,mi){ const p=projects.find(x=>x.id===pid); p.milestones[mi].done=!p.milestones[mi].done; render(); openDetails(pid); }
+function submitDelivery(pid){
+  const v=document.getElementById('del-'+pid).value.trim();
+  if(!v){alert("Please enter delivery link / file name");return;}
+  const p=projects.find(x=>x.id===pid); p.delivery=v; p.status='Submitted'; render(); openDetails(pid); alert("✅ Delivery Submitted!");
+}
+function changeStatus(pid,val){ const p=projects.find(x=>x.id===pid); p.status=val; render(); openDetails(pid); }
+function closeModal(){ document.getElementById('detailsModal').style.display='none'; }
+render();
+</script>
+</body>
+</html>
